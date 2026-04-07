@@ -1,0 +1,132 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{bm}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+\title{Modelo de polarización de opiniones tipo SIR con exclusión mutua}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Motivación y descripción general}
+
+Presentamos un modelo dinámico inspirado en los modelos epidemiológicos tipo SIR, no para describir la propagación de una enfermedad, sino la difusión y polarización de dos opiniones políticas opuestas en una red social. Cada agente puede encontrarse en uno de tres estados mutuamente excluyentes:
+\begin{itemize}
+    \item $S$: estado neutro (susceptible),
+    \item $P$: agente convencido de la opinión $P$,
+    \item $Q$: agente convencido de la opinión $Q$.
+\end{itemize}
+
+La red social se modela mediante un grafo, donde la adyacencia representa influencia social directa. Un agente en estado $P$ o $Q$ puede convencer a vecinos neutros, pero le será más complicado hacer lo propio con un agente que sostiene la opinión opuesta. En este modelo un agente no puede tener más de una opinión y la opinion es binaria (se tiene o no se tiene).
+
+El modelo proporciona un marco matemático para estudiar procesos de polarización política en redes sociales, destacando el rol de la topología del grafo y de la intensidad de la influencia social. Su estructura es formalmente análoga a modelos epidemiológicos, pero su interpretación es puramente sociológica.
+
+\section{Parámetros del modelo}
+
+Definimos los siguientes parámetros:
+\begin{itemize}
+    \item $\alpha_{p,i}$: proporción de vecinos con opinión p.
+    \item $\alpha_{q,i}$: proporción de vecinos con opinión q.
+    \item $\beta_p$: tasa de influencia de $P$ sobre agentes neutros,
+    \item $\beta_q$: tasa de influencia de $Q$ sobre agentes neutros,
+    \item $\delta_p$: tasa de abandono (recuperación) de la opinión $P$ hacia el estado neutro,
+    \item $\delta_q$: tasa de abandono (recuperación) de la opinión $Q$,
+    \item $\gamma_p = \dfrac{\beta_p}{\delta_p}$: tasa efectiva de influencia de $P$,
+    \item $\gamma_q = \dfrac{\beta_q}{\delta_q}$: tasa efectiva de influencia de $Q$.
+    \item $K$: tendencia (positiva hacia P, negativa hacia Q).
+\end{itemize}
+
+El parámetro $\gamma$ cumple el papel análogo al número reproductivo básico: si $\gamma > 1$, la opinión correspondiente puede propagarse.
+
+\section{Estructura de la red}
+
+Sea $A = (a_{ij})$ la matriz de adyacencia del grafo. Definimos:
+\begin{equation}
+    N_{p,i} = \sum_{j=1}^n a_{ij} p_j, \qquad N_{q,i} = \sum_{j=1}^n a_{ij} q_j,
+\end{equation}
+
+donde $p_i(t)$ y $q_i(t)$ representan la probabilidad (o fracción) de que el nodo $i$ esté en estado $P$ o $Q$ en el tiempo $t$.
+
+\section{Dinámica microscópica}
+
+Para cada nodo $i$ del grafo, el sistema dinámico viene dado por:
+\begin{align}
+    \dot p_i &= \bigl[s_i + \alpha_{q,i}q_i\bigr] \beta_p  N_{p,i}
+    - \alpha_{p,i}\beta_q p_i N_{q,i} - \delta_p p_i+K(s_i+q_i),  \\
+    \dot q_i &= \bigl[ s_i + \alpha_{p,i} p_i\bigr] \beta_q N_{q,i}
+    - \alpha_{q,i}\beta_p q_i N_{p,i} - \delta_q q_i-Kq_i, \\
+    \dot s_i &= \delta_p p_i + \delta_q q_i - \bigl[\beta_p N_{p,i} + \beta_q N_{q,i}\bigr] s_i-Ks_i.
+\end{align}
+
+con la restricción
+\begin{equation}
+    p_i + q_i + s_i = 1, \qquad \forall i.
+\end{equation}
+
+Los parámetros $\alpha_{p,i}, \alpha_{q,i}\in [0,1]$ miden la permeabilidad al cambio inducido indirectamente por la presencia de la opinión opuesta.
+
+\section{Interpretación sociológica}
+
+El término $N_{p,i}$ representa el número (o peso) de vecinos del nodo $i$ que sostienen la opinión $P$. La cantidad $\gamma_p$ puede interpretarse como el número promedio de agentes que un defensor de $P$ logra convencer antes de abandonar su postura.
+
+\section{Estados estacionarios}
+
+Buscamos soluciones estacionarias $(p_i^*, q_i^*, s_i^*)$ tales que
+\begin{equation}
+    \dot p_i = \dot q_i = \dot s_i = 0.
+\end{equation}
+
+El sistema admite siempre la solución trivial (para ciertas condiciones iniciales).
+\begin{equation}
+    p_i^* = q_i^* = 0, \qquad s_i^* = 1.
+\end{equation}
+
+correspondiente a una sociedad completamente neutral. En general:
+
+\begin{equation}
+        p_i^*=-\gamma_pN_{p,i}p_i^*-\alpha_{p,i}\gamma_q\delta_q{\delta_p}^{-1}N_{q,i}p_i^*+([\alpha_{q,i}-1]q_i^*+1)\gamma_p N_{p,i}+K\delta_p^{-1}(1-p_i^*),
+\end{equation}
+\begin{equation}
+    q_i^*=-\gamma_qN_{q,i}q_i^*-\alpha_{q,i}\gamma_p\delta_p{\delta_q}^{-1}N_{p,i}q_i^*+([\alpha_{p,i}-1]p_i^*+1)\gamma_q N_{q,i}-K\delta_q^{-1}(q_i^*).
+
+\end{equation}
+
+
+\subsection{Equilibrios polarizados}
+
+Para $K=0$ es bien sabido que si $q_i^* = 0$, el sistema se reduce a:
+\begin{equation}
+    p_i^* = \frac{\gamma_p N_{p,i}}{1 + \gamma_p N_{p,i}},
+\end{equation}
+
+con una coexistencia entre $P$ y $S$. De manera análoga, si $p_i^* = 0$:
+\begin{equation}
+    q_i^* = \frac{\gamma_q N_{q,i}}{1 + \gamma_q N_{q,i}}.
+\end{equation}
+
+Pero para $K \in \mathbb{R^+}$, $q_i^* = p_i^*=0$ es imposible. Obtenemos: 
+
+\begin{equation}
+    q_i^*=0,\ p_i^* = \frac{\beta_p N_{p,i}+K}{\beta_p N_{p,i}+K+\delta_p},
+\end{equation}
+\begin{equation}
+    p_i^*=0,\ q_i^* = \frac{\beta_q N_{q,i}}{\beta_q N_{q,i}+K+\delta_q}.
+\end{equation}    
+
+\section{Límite asintótico}
+
+En el límite $t \to \infty$, el sistema converge hacia uno de los equilibrios anteriores dependiendo de las condiciones iniciales y de si $\gamma_p$ o $\gamma_q$ superan el umbral crítico determinado por la estructura espectral del grafo.
+
+La coexistencia estable de $P$ y $Q$ no es genérica debido a la exclusión mutua, salvo en casos degenerados o simétricos.
+
+\section{Conclusión}
+Las imposibilidad de la solución $p_i=q_i=0, \forall K!=0$ nos muestra la eficacia del broadcasting en redes sociales.
+
+
+\end{document}
+```
