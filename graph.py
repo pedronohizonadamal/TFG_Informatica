@@ -1,11 +1,17 @@
 import networkx as nx
 import numpy as np
+import matplotlib.pyplot as plt
+from visualize import visualize_graph, get_colours
+ 
+# Cuántos arcos unen opiniones distintas. 
 
-POPULATION = 1000
+# Cuántos amigos tienen los nodos con una opinion o.
 
-INITIAL_SIZE = 10
+POPULATION = 50
 
-NUMBER_OF_FRIENDS = 3
+INITIAL_SIZE = 4
+
+NUMBER_OF_NEIGHBORS = INITIAL_SIZE-1
 
 STEPS = 50
 
@@ -32,7 +38,7 @@ DELTA_Q_P = 0.1
 GAMMA_P = DELTA_R_P/DELTA_P_R
 GAMMA_Q = DELTA_R_Q/DELTA_Q_R
 
-K = 0.5 # Positive means towards P, negative, Q
+K = 0.000000005# Positive means towards P, negative, Q
 
 def roll_opinion():
     return int(np.random.choice([P_VALUE, Q_VALUE, R_VALUE], p=[P, Q, R]))
@@ -56,7 +62,7 @@ def generate_graph():
     G = nx.Graph(generate_initial_graph())
 
     for i in range(INITIAL_SIZE, POPULATION):
-        connections = np.random.choice(G.nodes(), size=NUMBER_OF_FRIENDS, replace=False, p=probability_function(G)).tolist()
+        connections = np.random.choice(G.nodes(), size=NUMBER_OF_NEIGHBORS, replace=False, p=probability_function(G)).tolist()
         G.add_node(i, opinion=roll_opinion())
         G.add_edges_from([(j,i) for j in connections])
     
@@ -129,14 +135,92 @@ def new_opinions(G):
         G.nodes[node]["opinion"] = G.nodes[node]["new_opinion"]
         
     return G
+
+def count_neighbors_per_opinion(G):
+    tally = {
+        P_VALUE: 0,
+        Q_VALUE: 0,
+        R_VALUE: 0
+    }
+    
+    s = 0
+    previous_node = -1
+    for node in G.nodes():
+        number_of_neighbors = len(list(nx.all_neighbors(G, node)))
+        s += number_of_neighbors
+        tally[G.nodes[node]["opinion"]] += number_of_neighbors
+    
+    return tally
+
+def sort_nodes_by_number_of_neighbors(G):
+    # https://realpython.com/sort-python-dictionary/
+    neighbors_per_node = {}
+    colour_list = get_colours(G)
+    for node in G.nodes():
+        neighbors_per_node[node] = (len(list(nx.all_neighbors(G, node))), colour_list[node])
+    return dict(sorted(neighbors_per_node.items(), key=lambda item: -item[1][0]))
+
+# Ordena según el número (decreciente) de vecinos
+def graph_nodes_against_number_of_neighbors(G):
+    # https://pythonguides.com/matplotlib-bar-chart-different-colors-python/
+    sorted_nodes = sort_nodes_by_number_of_neighbors(G)
+    
+    node_info = list(sorted_nodes.values())
+    
+    x_axis = range(len(sorted_nodes))
+    counts = [count[0] for count in node_info]
+    colors = [colour[1] for colour in node_info]
+    
+    plt.bar(x_axis, counts, color=colors)
+    plt.title("Nodes Against Number of Neighbors")
+    plt.xlabel("Node Index")
+    plt.ylabel("Number of Friends")
+    plt.show()
+    
+# Ordena según el orden de creación    
+def graph_nodes_against_number_of_neighbors_with_ids(G):
+    # https://pythonguides.com/matplotlib-bar-chart-different-colors-python/
+    sorted_nodes = sort_nodes_by_number_of_neighbors(G)
+    
+    node_info = list(sorted_nodes.values())
+    
+    x_axis = list(sorted_nodes.keys())
+    counts = [count[0] for count in node_info]
+    colors = [colour[1] for colour in node_info]
+    
+    plt.bar(x_axis, counts, color=colors)
+    plt.title("Nodes Against Number of Neighbors")
+    plt.xlabel("Node Index")
+    plt.ylabel("Number of Friends")
+    plt.show()
+    
         
-def simulate_s_steps (G, s=STEPS):
-    for _ in range(s): 
+def simulate_s_steps (G, s=STEPS, frequency=10):
+    for i in range(s+1): 
         G = new_opinions(G)
+        if i%frequency == 0:
+            print(count_opinions(G))
     return G
 
-G = generate_graph()
 
-print(count_opinions(G))
 
-print(count_opinions(simulate_s_steps(G, 5)))
+if __name__ == "__main__":
+
+    G = generate_graph()
+    
+    
+    print("Counting neighbors:", count_neighbors_per_opinion(G))
+    
+    graph_nodes_against_number_of_neighbors(G)
+    
+    graph_nodes_against_number_of_neighbors_with_ids(G)
+    
+    visualize_graph(G)
+
+    # print(count_opinions(G))
+
+    # print(count_opinions(simulate_s_steps(G, 5)))
+
+    #simulate_s_steps(G)
+    
+    #print("Counting neighbors:", count_neighbors_per_opinion(G))
