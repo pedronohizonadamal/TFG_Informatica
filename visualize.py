@@ -14,7 +14,8 @@ def get_colours(G):
         Q_VALUE:"blue",
         R_VALUE:"green"
     }
-    return [colour_table[G.nodes[node]["opinion"]] for node in G.nodes]
+    return [colour_table[G.nodes[node]["opinion"]] if G.nodes[node]["is_broadcaster"] == False else "purple" for node in G.nodes]
+        
  
 def visualize_graph(G):
     nx.draw_networkx(G, node_color=get_colours(G))

@@ -38,7 +38,10 @@ DELTA_Q_P = 0.1
 GAMMA_P = DELTA_R_P/DELTA_P_R
 GAMMA_Q = DELTA_R_Q/DELTA_Q_R
 
-K = 0.000000005# Positive means towards P, negative, Q
+K = 0# Positive means towards P, negative, Q
+
+K_NEW = 5
+BROADCASTER_OPINION = P_VALUE
 
 def roll_opinion():
     return int(np.random.choice([P_VALUE, Q_VALUE, R_VALUE], p=[P, Q, R]))
@@ -66,8 +69,19 @@ def generate_graph():
         G.add_node(i, opinion=roll_opinion())
         G.add_edges_from([(j,i) for j in connections])
     
+    return add_broadcasters(G)
+
+def add_broadcasters(G):
+    
+    for node in G.nodes():
+        G.nodes[node]["is_broadcaster"] = False
+    for i in range(POPULATION, POPULATION + K_NEW):
+        G.add_node(i, opinion=BROADCASTER_OPINION, is_broadcaster=True, new_opinion=BROADCASTER_OPINION)
+        G.add_edges_from([(j,i) for j in range(POPULATION)])
+        
     return G
 
+# Only non-broadcaster
 def count_opinions(G):
     opinions = {
         P_VALUE:0,
@@ -76,6 +90,8 @@ def count_opinions(G):
     }
     
     for node in G.nodes():
+        if G.nodes[node]["is_broadcaster"]:
+            continue
         opinions[G.nodes[node]["opinion"]] += 1
     
     return opinions
@@ -128,10 +144,14 @@ def new_opinions(G):
         neighbors = nx.all_neighbors(G, node)
         for neighbor in neighbors:
             tally[G.nodes[neighbor]["opinion"]] += 1
+        if G.nodes[node]["is_broadcaster"]:
+            continue
         opinion = G.nodes[node]["opinion"]
         G.nodes[node]["new_opinion"] = int(np.random.choice([P_VALUE, Q_VALUE, R_VALUE], \
             p=update_opinion_probability(opinion, tally[P_VALUE], tally[Q_VALUE], tally[R_VALUE])))     
     for node in G.nodes():
+        if G.nodes[node]["is_broadcaster"]:
+            continue
         G.nodes[node]["opinion"] = G.nodes[node]["new_opinion"]
         
     return G
