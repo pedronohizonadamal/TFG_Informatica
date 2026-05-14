@@ -7,16 +7,16 @@ from visualize import visualize_graph, get_colours
 
 # Cuántos amigos tienen los nodos con una opinion o.
 
-POPULATION = 50
+POPULATION = 500
 
-INITIAL_SIZE = 4
+INITIAL_SIZE = 10
 
 NUMBER_OF_NEIGHBORS = INITIAL_SIZE-1
 
-STEPS = 50
+STEPS = 500
 
-P = 0.6 # value 1
-Q = 0.3 # value -1
+P = 0 # value 1
+Q = 1 # value -1
 R = 1-P-Q
 
 P_VALUE = 1
@@ -38,7 +38,27 @@ DELTA_Q_P = 0.1
 GAMMA_P = DELTA_R_P/DELTA_P_R
 GAMMA_Q = DELTA_R_Q/DELTA_Q_R
 
-K = 0.000000005# Positive means towards P, negative, Q
+"""
+# From R
+DELTA_R_P = 0.2
+DELTA_R_Q = 0.2
+
+# To R
+DELTA_P_R = 0.1
+DELTA_Q_R = 0.1
+
+# From P or Q
+DELTA_P_Q = 0.1
+DELTA_Q_P = 0.1
+
+GAMMA_P = DELTA_R_P/DELTA_P_R
+GAMMA_Q = DELTA_R_Q/DELTA_Q_R
+"""
+
+K = 0# Positive means towards P, negative, Q
+
+K_NEW = 1
+BROADCASTER_OPINION = P_VALUE
 
 def roll_opinion():
     return int(np.random.choice([P_VALUE, Q_VALUE, R_VALUE], p=[P, Q, R]))
@@ -48,6 +68,9 @@ def generate_initial_graph():
     for node in initial_graph.nodes():
         initial_graph.nodes[node]["opinion"] = roll_opinion()
     return initial_graph
+
+def generate_initial_graph_no_opinion():
+    return nx.complete_graph(INITIAL_SIZE)
 
 def probability_function(G):
     number_of_edges = G.number_of_edges()
@@ -66,8 +89,32 @@ def generate_graph():
         G.add_node(i, opinion=roll_opinion())
         G.add_edges_from([(j,i) for j in connections])
     
+    return add_broadcasters(G)
+
+def generate_graph_no_opinion():
+    G = nx.Graph(generate_initial_graph_no_opinion())
+
+    for i in range(INITIAL_SIZE, POPULATION):
+        connections = np.random.choice(G.nodes(), size=NUMBER_OF_NEIGHBORS, replace=False, p=probability_function(G)).tolist()
+        G.add_node(i, opinion=roll_opinion())
+        G.add_edges_from([(j,i) for j in connections])
+        
+    for node in G.nodes():
+        G.nodes[node]["opinion"] = roll_opinion()
+    
+    return add_broadcasters(G)
+
+def add_broadcasters(G):
+    
+    for node in G.nodes():
+        G.nodes[node]["is_broadcaster"] = False
+    for i in range(POPULATION, POPULATION + K_NEW):
+        G.add_node(i, opinion=BROADCASTER_OPINION, is_broadcaster=True, new_opinion=BROADCASTER_OPINION)
+        G.add_edges_from([(j,i) for j in range(POPULATION)])
+        
     return G
 
+# Only non-broadcaster
 def count_opinions(G):
     opinions = {
         P_VALUE:0,
@@ -76,6 +123,8 @@ def count_opinions(G):
     }
     
     for node in G.nodes():
+        if G.nodes[node]["is_broadcaster"]:
+            continue
         opinions[G.nodes[node]["opinion"]] += 1
     
     return opinions
@@ -120,6 +169,9 @@ def update_opinion_probability(opinion, p_neighbors, q_neighbors, r_neighbors):
 
 def new_opinions(G):
     for node in G.nodes():
+        if G.nodes[node]["is_broadcaster"]:
+            continue
+        
         tally = {
             P_VALUE:0,
             Q_VALUE:0,
@@ -132,9 +184,12 @@ def new_opinions(G):
         G.nodes[node]["new_opinion"] = int(np.random.choice([P_VALUE, Q_VALUE, R_VALUE], \
             p=update_opinion_probability(opinion, tally[P_VALUE], tally[Q_VALUE], tally[R_VALUE])))     
     for node in G.nodes():
+        if G.nodes[node]["is_broadcaster"]:
+            continue
         G.nodes[node]["opinion"] = G.nodes[node]["new_opinion"]
         
     return G
+
 
 def count_neighbors_per_opinion(G):
     tally = {
@@ -199,23 +254,30 @@ def simulate_s_steps (G, s=STEPS, frequency=10):
     for i in range(s+1): 
         G = new_opinions(G)
         if i%frequency == 0:
-            print(count_opinions(G))
+            continue
+            #print(count_opinions(G))
     return G
 
 
 
 if __name__ == "__main__":
 
-    G = generate_graph()
+    G = generate_graph_no_opinion()
     
     
-    print("Counting neighbors:", count_neighbors_per_opinion(G))
+    #print("Counting neighbors:", count_neighbors_per_opinion(G))
     
-    graph_nodes_against_number_of_neighbors(G)
+    print("Counting opinions:", count_opinions(G))
     
-    graph_nodes_against_number_of_neighbors_with_ids(G)
+    simulate_s_steps(G)
+
+    print("After", STEPS, "->", count_opinions(G))
     
-    visualize_graph(G)
+    #graph_nodes_against_number_of_neighbors(G)
+    
+    #graph_nodes_against_number_of_neighbors_with_ids(G)
+    
+    #visualize_graph(G)
 
     # print(count_opinions(G))
 

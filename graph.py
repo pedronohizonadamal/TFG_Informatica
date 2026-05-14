@@ -2,66 +2,34 @@ import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
 from visualize import visualize_graph, get_colours
- 
-# Cuántos arcos unen opiniones distintas. 
-
-# Cuántos amigos tienen los nodos con una opinion o.
 
 POPULATION = 500
 
+# Preferably don't change
 INITIAL_SIZE = 10
 
+# m
 NUMBER_OF_NEIGHBORS = INITIAL_SIZE-1
 
-STEPS = 500
+STEPS = 50
 
-P = 0 # value 1
-Q = 1 # value -1
-R = 1-P-Q
+# Initial Proportion (Keep at 1 decimal, Sum=1)
+P_PROB = 0.6 # value 1
+Q_PROB = 0 # value -1
+R_PROB = 1-P_PROB-Q_PROB
 
 P_VALUE = 1
 Q_VALUE = -1
 R_VALUE = 0
 
-# From R
-DELTA_R_P = 0.2
-DELTA_R_Q = 0.2
+K = 0 # Positive means towards P, negative, Q
 
-# To R
-DELTA_P_R = 0.1
-DELTA_Q_R = 0.1
-
-# From P or Q
-DELTA_P_Q = 0.1
-DELTA_Q_P = 0.1
-
-GAMMA_P = DELTA_R_P/DELTA_P_R
-GAMMA_Q = DELTA_R_Q/DELTA_Q_R
-
-"""
-# From R
-DELTA_R_P = 0.2
-DELTA_R_Q = 0.2
-
-# To R
-DELTA_P_R = 0.1
-DELTA_Q_R = 0.1
-
-# From P or Q
-DELTA_P_Q = 0.1
-DELTA_Q_P = 0.1
-
-GAMMA_P = DELTA_R_P/DELTA_P_R
-GAMMA_Q = DELTA_R_Q/DELTA_Q_R
-"""
-
-K = 0# Positive means towards P, negative, Q
-
-K_NEW = 1
+# K > 0
+KRAFT_BROADCASTER = 0.9
 BROADCASTER_OPINION = P_VALUE
 
 def roll_opinion():
-    return int(np.random.choice([P_VALUE, Q_VALUE, R_VALUE], p=[P, Q, R]))
+    return int(np.random.choice([P_VALUE, Q_VALUE, R_VALUE], p=[P_PROB, Q_PROB, R_PROB]))
 
 def generate_initial_graph():
     initial_graph = nx.complete_graph(INITIAL_SIZE)
@@ -69,13 +37,10 @@ def generate_initial_graph():
         initial_graph.nodes[node]["opinion"] = roll_opinion()
     return initial_graph
 
-def generate_initial_graph_no_opinion():
-    return nx.complete_graph(INITIAL_SIZE)
-
 def probability_function(G):
     number_of_edges = G.number_of_edges()
     prob = [float(G.degree(node))/(2*number_of_edges) for node in G.nodes()]
-    # Por si redondeando el float se generase una función inválida
+    # Por si redondeando el float se generase una distribución inválida
     s = sum(prob)
     if s != 1:
         prob[-1] = 1 - s + prob[-1]
@@ -89,32 +54,8 @@ def generate_graph():
         G.add_node(i, opinion=roll_opinion())
         G.add_edges_from([(j,i) for j in connections])
     
-    return add_broadcasters(G)
-
-def generate_graph_no_opinion():
-    G = nx.Graph(generate_initial_graph_no_opinion())
-
-    for i in range(INITIAL_SIZE, POPULATION):
-        connections = np.random.choice(G.nodes(), size=NUMBER_OF_NEIGHBORS, replace=False, p=probability_function(G)).tolist()
-        G.add_node(i, opinion=roll_opinion())
-        G.add_edges_from([(j,i) for j in connections])
-        
-    for node in G.nodes():
-        G.nodes[node]["opinion"] = roll_opinion()
-    
-    return add_broadcasters(G)
-
-def add_broadcasters(G):
-    
-    for node in G.nodes():
-        G.nodes[node]["is_broadcaster"] = False
-    for i in range(POPULATION, POPULATION + K_NEW):
-        G.add_node(i, opinion=BROADCASTER_OPINION, is_broadcaster=True, new_opinion=BROADCASTER_OPINION)
-        G.add_edges_from([(j,i) for j in range(POPULATION)])
-        
     return G
 
-# Only non-broadcaster
 def count_opinions(G):
     opinions = {
         P_VALUE:0,
@@ -123,8 +64,6 @@ def count_opinions(G):
     }
     
     for node in G.nodes():
-        if G.nodes[node]["is_broadcaster"]:
-            continue
         opinions[G.nodes[node]["opinion"]] += 1
     
     return opinions
@@ -134,32 +73,22 @@ def update_opinion_probability(opinion, p_neighbors, q_neighbors, r_neighbors):
     neighbors = p_neighbors + q_neighbors + r_neighbors
     
     if opinion == P_VALUE:    
-        change_q = DELTA_P_Q * q_neighbors
-        change_r = DELTA_P_R * q_neighbors
-        if K > 0:
-            probability = [(neighbors-change_q-change_r+K)/(neighbors+K), change_q/(neighbors+K), change_r/(neighbors+K)]
-        else:
-            k = abs(K)
-            probability = [(neighbors-change_q-change_r)/(neighbors+k), (change_q+k)/(neighbors+k), change_r/(neighbors+k)]
-            
+        change_q = (q_neighbors + KRAFT_BROADCASTER) / (neighbors + KRAFT_BROADCASTER)
+        change_p = 1 - change_q
+        change_r = 0
+                  
     elif opinion == Q_VALUE:
-        change_p = DELTA_Q_P * p_neighbors
-        change_r = DELTA_Q_R * p_neighbors
-        if K > 0:
-            probability = [(change_p+K)/(neighbors+K), (neighbors-change_p-change_r)/(neighbors+K), change_r/(neighbors+K)]
-        else:
-            k = abs(K)
-            probability = [change_p/(neighbors+k), (neighbors-change_p-change_r+k)/(neighbors+k), change_r/(neighbors+k)]
-    
+        change_p = p_neighbors / (neighbors + KRAFT_BROADCASTER)
+        change_q = 1 - change_p
+        change_r = 0
+           
     else:
-        change_p = DELTA_R_P * p_neighbors
-        change_q = DELTA_R_Q * q_neighbors
-        if K > 0:
-            probability = [(change_p+K)/(neighbors+K), change_q/(neighbors+K), (neighbors-change_p-change_q)/(neighbors+K)]        
-        else:
-            k = abs(K)
-            probability = [change_p/(neighbors+k), (change_q+k)/(neighbors+k), (neighbors-change_p-change_q)/(neighbors+k)]
+        change_p = p_neighbors / (neighbors + KRAFT_BROADCASTER)
+        change_q = (q_neighbors + KRAFT_BROADCASTER) / (neighbors + KRAFT_BROADCASTER)
+        change_r = 1 - change_p - change_q
         
+    probability = [change_p, change_q, change_r]        
+           
     # float shenanigans
     s = sum(probability)
     if s != 1:
@@ -169,8 +98,6 @@ def update_opinion_probability(opinion, p_neighbors, q_neighbors, r_neighbors):
 
 def new_opinions(G):
     for node in G.nodes():
-        if G.nodes[node]["is_broadcaster"]:
-            continue
         
         tally = {
             P_VALUE:0,
@@ -184,20 +111,17 @@ def new_opinions(G):
         G.nodes[node]["new_opinion"] = int(np.random.choice([P_VALUE, Q_VALUE, R_VALUE], \
             p=update_opinion_probability(opinion, tally[P_VALUE], tally[Q_VALUE], tally[R_VALUE])))     
     for node in G.nodes():
-        if G.nodes[node]["is_broadcaster"]:
-            continue
         G.nodes[node]["opinion"] = G.nodes[node]["new_opinion"]
         
     return G
 
-
 def count_neighbors_per_opinion(G):
+    
     tally = {
         P_VALUE: 0,
         Q_VALUE: 0,
         R_VALUE: 0
     }
-    
     s = 0
     previous_node = -1
     for node in G.nodes():
@@ -250,19 +174,18 @@ def graph_nodes_against_number_of_neighbors_with_ids(G):
     plt.show()
     
         
-def simulate_s_steps (G, s=STEPS, frequency=10):
-    for i in range(s+1): 
+def simulate_s_steps (G, s=STEPS, frequency=STEPS/10):
+    for i in range(s): 
         G = new_opinions(G)
-        if i%frequency == 0:
-            continue
-            #print(count_opinions(G))
+        if (i+1)%frequency == 0:
+            print(f"After {i+1} steps:", count_opinions(G))
     return G
 
 
 
 if __name__ == "__main__":
 
-    G = generate_graph_no_opinion()
+    G = generate_graph()
     
     
     #print("Counting neighbors:", count_neighbors_per_opinion(G))
@@ -270,8 +193,6 @@ if __name__ == "__main__":
     print("Counting opinions:", count_opinions(G))
     
     simulate_s_steps(G)
-
-    print("After", STEPS, "->", count_opinions(G))
     
     #graph_nodes_against_number_of_neighbors(G)
     
