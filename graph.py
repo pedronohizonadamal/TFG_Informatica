@@ -28,7 +28,7 @@ R_VALUE = 0
 K = 0 # Positive means towards P, negative, Q
 
 # K > 0
-KRAFT_BROADCASTER = 0.2
+KRAFT_BROADCASTER = 0.1
 BROADCASTER_OPINION = P_VALUE
 
 def roll_opinion():
@@ -212,9 +212,16 @@ def taken_over(G):
     return True if count_opinions(G)[Q_VALUE] == POPULATION else False
 
 def plot_population_distribution(data):
+    
+    plt.ylim(0,1)
+    
     plt.plot(data["t"], data[P_VALUE], color='r', label='P')
     plt.plot(data["t"], data[Q_VALUE], color='g', label='Q')
     plt.plot(data["t"], data[R_VALUE], color='b', label='R')
+    
+    plt.fill_between(data["t"], [0]*len(data["t"]), data[P_VALUE], color='r')
+    plt.fill_between(data["t"], data[P_VALUE], data[R_VALUE], color='g')
+    plt.fill_between(data["t"], data[R_VALUE], data[Q_VALUE], color="b")
 
     plt.xlabel("Steps")
     plt.ylabel("Accumulated Proportion")
@@ -235,7 +242,7 @@ def steps_to_takeover (G, frequency=PRINT_FREQUENCY):
             print(f"Q took over after {i+1} steps. (K = {KRAFT_BROADCASTER})")
             if not updated_graph_data:
                 graph_data = update_graph_data(G, graph_data, (i+1)%frequency)
-                plot_population_distribution(graph_data)
+            plot_population_distribution(graph_data)
             return G
     plot_population_distribution(graph_data)
     print("Q never took over. (K = {KRAFT_BROADCASTER})")
