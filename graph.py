@@ -12,9 +12,12 @@ INITIAL_SIZE = 10
 NUMBER_OF_NEIGHBORS = INITIAL_SIZE-1
 
 STEPS = 50
+MAX_STEPS = 10000
+
+PRINT_FREQUENCY = 5
 
 # Initial Proportion (Keep at 1 decimal, Sum=1)
-P_PROB = 0.6 # value 1
+P_PROB = 0.1 # value 1
 Q_PROB = 0 # value -1
 R_PROB = 1-P_PROB-Q_PROB
 
@@ -25,7 +28,7 @@ R_VALUE = 0
 K = 0 # Positive means towards P, negative, Q
 
 # K > 0
-KRAFT_BROADCASTER = 0.9
+KRAFT_BROADCASTER = 0.2
 BROADCASTER_OPINION = P_VALUE
 
 def roll_opinion():
@@ -73,19 +76,20 @@ def update_opinion_probability(opinion, p_neighbors, q_neighbors, r_neighbors):
     neighbors = p_neighbors + q_neighbors + r_neighbors
     
     if opinion == P_VALUE:    
-        change_q = (q_neighbors + KRAFT_BROADCASTER) / (neighbors + KRAFT_BROADCASTER)
+        change_q = float((q_neighbors + KRAFT_BROADCASTER)) / (neighbors + KRAFT_BROADCASTER)
         change_p = 1 - change_q
         change_r = 0
                   
     elif opinion == Q_VALUE:
-        change_p = p_neighbors / (neighbors + KRAFT_BROADCASTER)
+        change_p = float(p_neighbors) / (neighbors + KRAFT_BROADCASTER)
         change_q = 1 - change_p
         change_r = 0
            
     else:
-        change_p = p_neighbors / (neighbors + KRAFT_BROADCASTER)
+        change_p = float(p_neighbors) / (neighbors + KRAFT_BROADCASTER)
         change_q = (q_neighbors + KRAFT_BROADCASTER) / (neighbors + KRAFT_BROADCASTER)
         change_r = 1 - change_p - change_q
+        change_r = change_r if change_r >= 0 else r_neighbors / (neighbors + KRAFT_BROADCASTER)
         
     probability = [change_p, change_q, change_r]        
            
@@ -94,6 +98,11 @@ def update_opinion_probability(opinion, p_neighbors, q_neighbors, r_neighbors):
     if s != 1:
         probability[0] = 1 - s + probability[0]
         
+    for prob in range(3): 
+        if probability[prob] < 0: 
+            print(f"Probabilidad negativa: {opinion} {p_neighbors} {q_neighbors} {r_neighbors} {probability}")
+            break
+
     return probability
 
 def new_opinions(G):
@@ -181,6 +190,56 @@ def simulate_s_steps (G, s=STEPS, frequency=STEPS/10):
             print(f"After {i+1} steps:", count_opinions(G))
     return G
 
+def update_graph_data(G, data, x_step):
+    tally = count_opinions(G)
+    data[P_VALUE].append((tally[P_VALUE])/POPULATION)
+    data[Q_VALUE].append(1)
+    data[R_VALUE].append((tally[P_VALUE]+tally[R_VALUE])/POPULATION)
+    data["t"].append(data["t"][-1] + x_step)
+    return data
+    
+def init_graph_data(G):
+    tally = count_opinions(G)
+    data = {
+        P_VALUE:[tally[P_VALUE]/POPULATION],
+        Q_VALUE:[1],
+        R_VALUE:[(tally[P_VALUE]+tally[R_VALUE])/POPULATION],
+        "t":[0]
+    }
+    return data
+
+def taken_over(G):
+    return True if count_opinions(G)[Q_VALUE] == POPULATION else False
+
+def plot_population_distribution(data):
+    plt.plot(data["t"], data[P_VALUE], color='r', label='P')
+    plt.plot(data["t"], data[Q_VALUE], color='g', label='Q')
+    plt.plot(data["t"], data[R_VALUE], color='b', label='R')
+
+    plt.xlabel("Steps")
+    plt.ylabel("Accumulated Proportion")
+    plt.title(f"Population Distribution Over Time (K={KRAFT_BROADCASTER})")
+    plt.legend()
+    plt.show()
+
+def steps_to_takeover (G, frequency=PRINT_FREQUENCY):
+    graph_data = init_graph_data(G)
+    for i in range(MAX_STEPS): 
+        updated_graph_data = False
+        G = new_opinions(G)
+        if (i+1)%frequency == 0:
+            print(f"After {i+1} steps:", count_opinions(G))
+            graph_data = update_graph_data(G, graph_data, frequency)
+            updated_graph_data = True
+        if taken_over(G):
+            print(f"Q took over after {i+1} steps. (K = {KRAFT_BROADCASTER})")
+            if not updated_graph_data:
+                graph_data = update_graph_data(G, graph_data, (i+1)%frequency)
+                plot_population_distribution(graph_data)
+            return G
+    plot_population_distribution(graph_data)
+    print("Q never took over. (K = {KRAFT_BROADCASTER})")
+    return G
 
 
 if __name__ == "__main__":
@@ -192,7 +251,9 @@ if __name__ == "__main__":
     
     print("Counting opinions:", count_opinions(G))
     
-    simulate_s_steps(G)
+    steps_to_takeover(G)
+    
+    #simulate_s_steps(G)
     
     #graph_nodes_against_number_of_neighbors(G)
     
