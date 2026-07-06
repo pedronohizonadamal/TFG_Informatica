@@ -4,17 +4,15 @@ import matplotlib.pyplot as plt
 
 P_VALUE = 1
 Q_VALUE = -1
-R_VALUE = 0 
 
 def count_opinions(G):
     pass
 def get_colours(G):
     colour_table = {
         P_VALUE:"red",
-        Q_VALUE:"blue",
-        R_VALUE:"green"
+        Q_VALUE:"blue"
     }
-    return [colour_table[G.nodes[node]["opinion"]] if G.nodes[node]["is_broadcaster"] == False else "purple" for node in G.nodes]
+    return [colour_table[G.nodes[node]["opinion"]] for node in G.nodes]
         
  
 def visualize_graph(G):
